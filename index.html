@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nashik Book Depots Map</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+
+        .controls {
+            margin: 10px;
+        }
+
+        .depot-control {
+            margin: 5px 0;
+        }
+
+        .add-depot-form {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Top Book Depots in Nashik with Boundary</h1>
+    <div id="map"></div>
+    <div class="controls" id="depot-controls"></div>
+
+    <div class="add-depot-form">
+        <h3>Add New Book Depot</h3>
+        <input id="depot-name" type="text" placeholder="Depot Name" required />
+        <input id="depot-lat" type="number" placeholder="Latitude" step="any" required />
+        <input id="depot-lng" type="number" placeholder="Longitude" step="any" required />
+        <input id="depot-radius" type="number" placeholder="Radius (km)" step="0.1" min="0.1" value="0.5" required />
+        <button id="add-depot-button">Add Depot</button>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-omnivore/leaflet-omnivore.min.js"></script>
+
+    <script>
+        var map = L.map('map').setView([19.9975, 73.7898], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+        }).addTo(map);
+
+        // GeoJSON Data for Nashik boundary
+        var geojsonData = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                            [
+                                [73.9295708929385, 20.099709042173345],
+                                [73.89139798536542, 20.110618930376333],
+                                [73.86716648751437, 20.119969657758574],
+                                [73.84592243460443, 20.124644811829782],
+                                [73.82202287507951, 20.12682650256022],
+                                [73.80277044551462, 20.12682651304935],
+                                [73.77156275621837, 20.124333149728898],
+                                [73.743404151862, 20.1215276651495],
+                                [73.73079049544671, 20.098150031758294],
+                                [73.72149622229736, 20.07009226418971],
+                                [73.72083234564394, 20.049825198071076],
+                                [73.70788675090256, 20.037351856631602],
+                                [73.69693278612024, 20.027372470346165],
+                                [73.6962689094668, 20.02082315373947],
+                                [73.69328146452702, 19.998678206270682],
+                                [73.69128983456542, 19.987448591705487],
+                                [73.6749364643344, 20.00215311218942],
+                                [73.64051355438124, 20.00364066004434],
+                                [73.61272829604727, 19.98614115512933],
+                                [73.59893333823223, 19.96129896039099],
+                                [73.60414937205647, 19.934249803313122],
+                                [73.6924015432447, 19.937502463006723],
+                                [73.70948653910759, 19.924456414607164],
+                                [73.7122906294978, 19.901947624117568],
+                                [73.74009515035422, 19.89347666681256],
+                                [73.7936904649373, 19.929026751464093],
+                                [73.80745318046044, 19.92207016838202],
+                                [73.84711515136709, 19.916247520349458],
+                                [73.87617680960045, 19.9334110743997],
+                                [73.8956706044045, 19.957695415225047],
+                                [73.90185915670023, 19.990429243676417],
+                                [73.88697233432254, 20.01293623591721],
+                                [73.90713880708338, 20.06644620863365],
+                                [73.9295708929385, 20.099709042173345]
+                            ]
+                        ]
+                    }
+                }
+            ]
+        };
+
+        // Add GeoJSON layer
+        var geojsonLayer = L.geoJSON(geojsonData, {
+            style: {
+                color: '#ff7800',
+                weight: 2,
+                opacity: 0.65
+            }
+        }).addTo(map);
+
+        var depotLayer = L.layerGroup().addTo(map);
+        var depotMarkers = [];
+
+        // Initial book depots
+        var depots = [
+            { name: "New India Book House (Rating: 4.2) - Open: 9:30 AM - 8:30 PM", coords: [19.9950, 73.7800], radius: 0.5 },
+            { name: "Central Book Stall (Rating: 4.2) - Open: 11:00 AM - 8:30 PM (Mon-Sat), Closed Sun", coords: [19.9954, 73.7845], radius: 0.5 },
+            { name: "Deepak Pustakalaya (Rating: 4.2) - Open: 9:00 AM - 9:00 PM", coords: [19.9965, 73.7822], radius: 0.5 },
+            { name: "Rahul Book Centre (Rating: 4.2) - Open: 10:30 AM - 8:00 PM", coords: [19.9953, 73.7832], radius: 0.5 },
+            { name: "Bharat Book Depot (Rating: 4.2) - Open: 10:00 AM - 9:00 PM (Mon-Sat), 24 hrs Sun", coords: [19.9992, 73.7853], radius: 0.5 },
+        ];
+
+        // Function to add depot markers
+        function addDepotMarkers() {
+            depotLayer.clearLayers();
+            depotMarkers = [];
+            depots.forEach(function (depot, index) {
+                addDepot(depot.name, depot.coords, depot.radius);
+            });
+        }
+
+        // Function to add a depot
+        function addDepot(name, coords, radius) {
+            var marker = L.marker(coords).addTo(depotLayer);
+            marker.bindPopup(name);
+
+            var circle = L.circle(coords, {
+                color: 'blue',
+                fillColor: '#30f',
+                fillOpacity: 0.5,
+                radius: kmToMeters(radius)
+            }).addTo(depotLayer);
+
+            depotMarkers.push({ marker, circle });
+            createDepotControls(name, coords, circle);
+        }
+
+        // Convert km to meters
+        function kmToMeters(km) {
+            return km * 1000;
+        }
+
+        // Create controls for depot toggles and radius adjustments
+        function createDepotControls(name, coords, circle) {
+            const controlsContainer = document.getElementById('depot-controls');
+
+            const depotControl = document.createElement('div');
+            depotControl.classList.add('depot-control');
+
+            const toggleCheckbox = document.createElement('input');
+            toggleCheckbox.type = 'checkbox';
+            toggleCheckbox.checked = true;
+            toggleCheckbox.onchange = function () {
+                if (this.checked) {
+                    circle.addTo(depotLayer);
+                } else {
+                    depotLayer.removeLayer(circle);
+                }
+            };
+
+            const colorPicker = document.createElement('input');
+            colorPicker.type = 'color';
+            colorPicker.value = '#30f';
+            colorPicker.oninput = function () {
+                circle.setStyle({ color: this.value, fillColor: this.value });
+            };
+
+            const radiusInput = document.createElement('input');
+            radiusInput.type = 'number';
+            radiusInput.value = 0.5;
+            radiusInput.step = 0.1;
+            radiusInput.min = 0.1;
+            radiusInput.oninput = function () {
+                const newRadius = parseFloat(this.value);
+                circle.setRadius(kmToMeters(newRadius));
+            };
+
+            depotControl.appendChild(toggleCheckbox);
+            depotControl.appendChild(document.createTextNode(name));
+            depotControl.appendChild(colorPicker);
+            depotControl.appendChild(radiusInput);
+            controlsContainer.appendChild(depotControl);
+        }
+
+        // Add initial depots to the map
+        addDepotMarkers();
+
+        // Handle add depot button click
+        document.getElementById('add-depot-button').onclick = function () {
+            const name = document.getElementById('depot-name').value;
+            const lat = parseFloat(document.getElementById('depot-lat').value);
+            const lng = parseFloat(document.getElementById('depot-lng').value);
+            const radius = parseFloat(document.getElementById('depot-radius').value);
+
+            const newDepot = { name, coords: [lat, lng], radius };
+            depots.push(newDepot);
+            addDepot(newDepot.name, newDepot.coords, newDepot.radius);
+
+            // Clear form fields
+            document.getElementById('depot-name').value = '';
+            document.getElementById('depot-lat').value = '';
+            document.getElementById('depot-lng').value = '';
+            document.getElementById('depot-radius').value = 0.5;
+        };
+    </script>
+</body>
+
+</html>
